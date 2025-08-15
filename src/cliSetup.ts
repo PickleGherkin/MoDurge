@@ -14,6 +14,6 @@ export function cliSetup() {
     program.command("purge")
         .argument("<destination>", "Destination to purge node_modules.")
         .action(purge)
-        .option("-q, --quiet", "Suppress output");
-        
+        .option("-q, --quiet", "Suppress output", false)
+        .option("-f, --force", "Force deletion without confirmation. Highly destructive! Use this only if you know what you're doing.", false);
 }

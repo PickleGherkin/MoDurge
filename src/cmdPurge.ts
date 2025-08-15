@@ -34,7 +34,7 @@ class Purger {
 
     private deleteFolder(relativeEntryPath: string): void {
         if (!this.options.quiet) log(`Purging: ${relativeEntryPath}`);
-        rmSync(relativeEntryPath, { recursive: true });
+        rmSync(relativeEntryPath, { recursive: true, force: this.options.force });
     }
 }
 
