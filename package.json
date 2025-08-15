@@ -1,0 +1,21 @@
+{
+  "name": "modurge",
+  "author": "Shade",
+  "version": "1.0.0",
+  "bin": {
+    "modurge": "./bin/modurge.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.0.0"
+  },
+  "keywords": [],
+  "license": "MIT"
+}
