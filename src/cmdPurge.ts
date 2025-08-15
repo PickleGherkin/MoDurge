@@ -4,10 +4,16 @@ import { readdir, rm, stat } from "fs/promises";
 
 class Purger {
     private didPerformPurge = false;
-    private constructor(private options: OptionValues) { }
+    private constructor(private destinations: string[], private options: OptionValues) {
+        this.validateDestinationsNotEmpty();
+    }
+
+    private validateDestinationsNotEmpty(): void {
+        if (this.destinations.length === 0) globalThis.program.error("No destinations provided. Please specify at least one directory to purge Node.js modules.");
+    }
 
     public static async purge(destinations: string[], options: OptionValues): Promise<void> {
-        const purger = new Purger(options);
+        const purger = new Purger(destinations, options);
         for (const destination of destinations) {
             if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination}...`);
             await purger.walk(destination);
