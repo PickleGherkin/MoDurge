@@ -43,7 +43,7 @@ function isCurrentDirectory(destination: string): boolean {
 }
 
 export function purge(destination: string, options: OptionValues) {
-    if(!options.quiet) log(`MoPurge Version ${globalThis.program.version()} by Shade`);
+    if(!options.quiet) log(`MoDurge Version ${globalThis.program.version()} by Shade`);
     if (!options.quiet) log(`Purging node_modules in ${isCurrentDirectory(destination) ? "current directory" : destination}...`);
     Purger.purge(destination, options);
     if (!options.quiet) log(`Successfully purged all node_modules!`);
