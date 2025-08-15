@@ -1,40 +1,41 @@
 import { OptionValues } from "commander";
 import { log } from "console";
-import { rmSync, readdirSync, statSync } from "fs";
+import { readdir, rm, stat } from "fs/promises";
 
 class Purger {
     private constructor(private options: OptionValues) { }
 
-    public static purge(destination: string, options: OptionValues): void {
+    public static async purge(destination: string, options: OptionValues): Promise<void> {
         const purger = new Purger(options);
-        purger.walk(destination);
+        await purger.walk(destination);
     }
 
-    private walk(destination: string): void {
-        const entries = readdirSync(destination);
+    private async walk(destination: string): Promise<void> {
+        const entries = await readdir(destination);
         for (const entry of entries) {
             const relativeEntryPath = destination + "/" + entry;
-            const isModulesFolder = this.isModulesFolder(relativeEntryPath);
-            if (isModulesFolder) this.deleteFolder(relativeEntryPath);
+            const isModulesFolder = await this.isModulesFolder(relativeEntryPath);
+            if (isModulesFolder) await this.deleteFolder(relativeEntryPath);
         }
     }
 
-    private isModulesFolder(relativeEntryPath: string): boolean {
-        if (this.isNotDirectory(relativeEntryPath)) return false;
+    private async isModulesFolder(relativeEntryPath: string): Promise<boolean> {
+        if (await this.isNotDirectory(relativeEntryPath)) return false;
         if (!relativeEntryPath.includes("node_modules")) {
-            this.walk(relativeEntryPath);
+            await this.walk(relativeEntryPath);
             return false;
         }
         return true;
     }
 
-    private isNotDirectory(relativeEntryPath: string): boolean {
-        return !statSync(relativeEntryPath).isDirectory();
+    private async isNotDirectory(relativeEntryPath: string): Promise<boolean> {
+        const stats = await stat(relativeEntryPath);
+        return !stats.isDirectory();
     }
 
-    private deleteFolder(relativeEntryPath: string): void {
+    private async deleteFolder(relativeEntryPath: string): Promise<void> {
         if (!this.options.quiet) log(`Purging: ${relativeEntryPath}`);
-        rmSync(relativeEntryPath, { recursive: true, force: this.options.force });
+        await rm(relativeEntryPath, { recursive: true, force: this.options.force })
     }
 }
 
@@ -42,9 +43,11 @@ function isCurrentDirectory(destination: string): boolean {
     return destination === "." || destination === "./" || destination === process.cwd();
 }
 
-export function purge(destination: string, options: OptionValues) {
+export async function purge(destinations: string[], options: OptionValues) {
     if(!options.quiet) log(`MoDurge Version ${globalThis.program.version()} by Shade`);
-    if (!options.quiet) log(`Purging node_modules in ${isCurrentDirectory(destination) ? "current directory" : destination}...`);
-    Purger.purge(destination, options);
+    for (const destination of destinations) {
+        if (!options.quiet) log(`Searching for node_modules in ${isCurrentDirectory(destination) ? "current directory" : destination}...`);
+        await Purger.purge(destination, options);
+    }
     if (!options.quiet) log(`Successfully purged all node_modules!`);
 }
