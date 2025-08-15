@@ -9,10 +9,14 @@ class Purger {
     public static async purge(destinations: string[], options: OptionValues): Promise<void> {
         const purger = new Purger(options);
         for (const destination of destinations) {
-            if (!options.quiet) log(`Searching for node_modules in ${isCurrentDirectory(destination) ? "current directory" : destination}...`);
+            if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination}...`);
             await purger.walk(destination);
         }
         if (!options.quiet) log(purger.didPerformPurge ? `Successfully purged all node_modules!` : `No node_modules found to purge.`);
+    }
+
+    private isCurrentDirectory(destination: string): boolean {
+        return destination === "." || destination === "./" || destination === process.cwd();
     }
 
     private async walk(destination: string): Promise<void> {
@@ -41,12 +45,8 @@ class Purger {
     private async purgeDirectory(relativeEntryPath: string): Promise<void> {
         if (!this.options.quiet) log(`Purging: ${relativeEntryPath}`);
         await rm(relativeEntryPath, { recursive: true, force: this.options.force })
-        if(!this.didPerformPurge) this.didPerformPurge = true;
+        if (!this.didPerformPurge) this.didPerformPurge = true;
     }
-}
-
-function isCurrentDirectory(destination: string): boolean {
-    return destination === "." || destination === "./" || destination === process.cwd();
 }
 
 export async function purge(destinations: string[], options: OptionValues) {
