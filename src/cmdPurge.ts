@@ -1,10 +1,16 @@
 import { OptionValues } from "commander";
 import { log } from "console";
 import { readdir, rm, stat } from "fs/promises";
+import { getLogoAndVersion } from "./cliSetup";
 
-class Purger {
+class MoDurge {
     private didPerformPurge = false;
     private constructor(private destinations: string[], private options: OptionValues) {
+        this.prepareSystem();
+    }
+
+    private prepareSystem(): void {
+        if (!this.options.quiet) this.displayLogoAndVersion();
         this.validateDestinationsNotEmpty();
     }
 
@@ -12,17 +18,29 @@ class Purger {
         if (this.destinations.length === 0) globalThis.program.error("No destinations provided. Please specify at least one directory to purge Node.js modules.");
     }
 
+    private displayLogoAndVersion(): void {
+        log(getLogoAndVersion());
+    }
+
     public static async purge(destinations: string[], options: OptionValues): Promise<void> {
-        const purger = new Purger(destinations, options);
+        const purger = new MoDurge(destinations, options);
         for (const destination of destinations) {
             if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination}...`);
             await purger.walk(destination);
         }
-        if (!options.quiet) log(purger.didPerformPurge ? `Successfully purged all node_modules!` : `No node_modules found to purge.`);
+        if (!options.quiet) purger.displayCompletionMessage();
     }
 
     private isCurrentDirectory(destination: string): boolean {
         return destination === "." || destination === "./" || destination === process.cwd();
+    }
+
+    private displayCompletionMessage(): void {
+        if (this.options.dry) {
+            log("Dry run completed. No directories were deleted.");
+            return;
+        }
+        log(this.didPerformPurge ? `Successfully purged all node_modules!` : `No node_modules found to purge.`);
     }
 
     private async walk(destination: string): Promise<void> {
@@ -50,12 +68,11 @@ class Purger {
 
     private async purgeDirectory(relativeEntryPath: string): Promise<void> {
         if (!this.options.quiet) log(`Purging: ${relativeEntryPath}`);
-        await rm(relativeEntryPath, { recursive: true, force: this.options.force })
+        if (!this.options.dry) await rm(relativeEntryPath, { recursive: true, force: this.options.force });
         if (!this.didPerformPurge) this.didPerformPurge = true;
     }
 }
 
 export async function purge(destinations: string[], options: OptionValues) {
-    if (!options.quiet) log(`MoDurge Version ${globalThis.program.version()} by Shade`);
-    await Purger.purge(destinations, options);
+    await MoDurge.purge(destinations, options);
 }
