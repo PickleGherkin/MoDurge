@@ -1,0 +1,22 @@
+{
+	"name": "Node.js & TypeScript",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:latest",
+	"forwardPorts": [],
+	"postCreateCommand": "npm i",
+	"mounts": [
+		{
+			"source": "${localEnv:HOME}/.ssh",
+			"target": "/home/node/.ssh",
+			"type": "bind"
+		}
+	],
+	"customizations": {
+		"vscode": {
+			"settings": {},
+			"extensions": [
+				"gruntfuggly.todo-tree",
+				"eamodio.gitlens"
+			]
+		}
+	}
+}
