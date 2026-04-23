@@ -16,7 +16,7 @@ export function getLogoAndVersion() {
 
 export function cliSetup() {
     program
-        .version("1.1.0")
+        .version("1.1.1")
         .description("A modular tool for purging Node.js modules in multiple given project destinations. Will purge all node_modules recursively in any folder it finds.");
 
     program.command("purge")
