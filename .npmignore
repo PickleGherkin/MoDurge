@@ -14,12 +14,12 @@ tsconfig.json
 tsconfig.base.json
 
 # Ignore build logs and local env files
-.devcontainer/
 *.log
 .env
 .env.*
 
 # Ignore typical dev files
+.devcontainer/
 .github/
 .vscode/
 

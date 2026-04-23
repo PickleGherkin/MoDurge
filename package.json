@@ -7,11 +7,11 @@
   },
   "type": "module",
   "scripts": {
+    "start": "node bin/modurge.cjs",
     "_compile": "tsc",
     "_compile.watch": "tsc --watch",
     "_copyfiles": "copyfiles --up 1 \"./src/**/*.!(mts|ts)\" dist",
     "pretest": "npm-run-all -c _compile _copyfiles",
-    "test": "jest --runInBand",
     "build": "npm run pretest"
   },
   "dependencies": {
