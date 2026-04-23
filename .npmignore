@@ -1,0 +1,32 @@
+# Ignore source code since we only publish compiled output
+src/
+
+# Ignore test files
+test/
+tests/
+__tests__/
+ coverage/
+jest.config.js
+jest.config.ts
+
+# Ignore TypeScript configs
+tsconfig.json
+tsconfig.base.json
+
+# Ignore build logs and local env files
+.devcontainer/
+*.log
+.env
+.env.*
+
+# Ignore typical dev files
+.github/
+.vscode/
+
+# Ignore package manager lock files if we're publishing a library or CLI
+# (Though CLI tools sometimes keep them, it's generally good practice to ignore lock files in published packages)
+# package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Leave output (dist/), bin/, package.json, LICENSE, logo.txt, README.md, etc.

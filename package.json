@@ -3,7 +3,7 @@
   "author": "Shade",
   "version": "1.2.0",
   "bin": {
-    "modurge": "./bin/modurge.cjs"
+    "modurge": "bin/modurge.cjs"
   },
   "type": "module",
   "scripts": {
