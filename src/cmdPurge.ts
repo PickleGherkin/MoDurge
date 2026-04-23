@@ -2,9 +2,12 @@ import { OptionValues } from "commander";
 import { log } from "console";
 import { readdir, rm, stat } from "fs/promises";
 import { getLogoAndVersion } from "./cliSetup.js";
+import { Dirent } from "fs";
 
 class MoDurge {
     private didPerformPurge = false;
+    private totalBytesSaved = 0;
+
     private constructor(private destinations: string[], private options: OptionValues) {
         this.prepareSystem();
     }
@@ -35,12 +38,21 @@ class MoDurge {
         return destination === "." || destination === "./" || destination === process.cwd();
     }
 
+    private formatBytes(bytes: number): string {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     private displayCompletionMessage(): void {
+        const savedSpaceStr = this.formatBytes(this.totalBytesSaved);
         if (this.options.dry) {
-            log("Dry run completed. No directories were deleted.");
+            log(`Dry run completed. Found ${savedSpaceStr} of node_modules that would be deleted.`);
             return;
         }
-        log(this.didPerformPurge ? `Successfully purged all node_modules!` : `No node_modules found to purge.`);
+        log(this.didPerformPurge ? `Successfully purged all node_modules! Saved ${savedSpaceStr} of disk space.` : `No node_modules found to purge.`);
     }
 
     private async walk(destination: string): Promise<void> {
@@ -53,7 +65,8 @@ class MoDurge {
     }
 
     private async isModulesDirectory(relativeEntryPath: string): Promise<boolean> {
-        if (await this.isNotDirectory(relativeEntryPath)) return false;
+        const isNotDirectory = await this.isNotDirectory(relativeEntryPath)
+        if (isNotDirectory) return false;
         if (!relativeEntryPath.includes("node_modules")) {
             await this.walk(relativeEntryPath);
             return false;
@@ -61,15 +74,51 @@ class MoDurge {
         return true;
     }
 
-    private async isNotDirectory(relativeEntryPath: string): Promise<boolean> {
-        const stats = await stat(relativeEntryPath);
-        return !stats.isDirectory();
+    private async isNotDirectory(entryOrPath: string | Dirent<string>): Promise<boolean> {
+        if (entryOrPath instanceof Dirent) {
+            return !entryOrPath.isDirectory();
+        }
+        try {
+            const stats = await stat(entryOrPath);
+            return !stats.isDirectory();
+        } catch {
+            return true;
+        }
     }
 
     private async purgeDirectory(relativeEntryPath: string): Promise<void> {
         if (!this.options.quiet) log(`Purging: ${relativeEntryPath}`);
+
+        try {
+            const size = await this.getDirectorySize(relativeEntryPath);
+            this.totalBytesSaved += size;
+        } catch (error) {
+            // Ignore if we can't calculate size (e.g. permission issues)
+        }
+
         if (!this.options.dry) await rm(relativeEntryPath, { recursive: true, force: this.options.force });
         if (!this.didPerformPurge) this.didPerformPurge = true;
+    }
+
+    private async getDirectorySize(dirPath: string): Promise<number> {
+        let size = 0;
+        const entries = await readdir(dirPath, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const fullPath = dirPath + "/" + entry.name;
+            const isDirectory = !(await this.isNotDirectory(entry));
+            if (isDirectory) {
+                size += await this.getDirectorySize(fullPath);
+            } else if (entry.isFile()) {
+                try {
+                    const stats = await stat(fullPath);
+                    size += stats.size;
+                } catch {
+                    // Ignore broken symlinks
+                }
+            }
+        }
+        return size;
     }
 }
 
