@@ -1,4 +1,4 @@
-import { cliSetup } from "./cliSetup";
+import { cliSetup } from "./cliSetup.js";
 
 cliSetup();
 program.parse();

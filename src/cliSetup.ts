@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import { purge } from "./cmdPurge";
+import { purge } from "./cmdPurge.js";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -9,7 +9,7 @@ declare global {
 globalThis.program = new Command();
 
 export function getLogoAndVersion() {
-    const logoPath = join(__dirname, '..', 'logo.txt');
+    const logoPath = join(import.meta.dirname, '..', 'logo.txt');
     const logo = readFileSync(logoPath, "utf8");
     return `${logo}\nVersion ${globalThis.program.version()} by Shade`;    
 }

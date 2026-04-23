@@ -1,7 +1,7 @@
 import { OptionValues } from "commander";
 import { log } from "console";
 import { readdir, rm, stat } from "fs/promises";
-import { getLogoAndVersion } from "./cliSetup";
+import { getLogoAndVersion } from "./cliSetup.js";
 
 class MoDurge {
     private didPerformPurge = false;
