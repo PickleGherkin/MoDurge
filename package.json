@@ -25,5 +25,13 @@
     "typescript": "^6.0.3"
   },
   "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PickleGherkin/MoDurge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PickleGherkin/MoDurge/issues"
+  },
+  "homepage": "https://github.com/PickleGherkin/MoDurge#readme",
   "license": "MIT"
 }
