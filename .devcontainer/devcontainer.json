@@ -15,7 +15,8 @@
 			"settings": {},
 			"extensions": [
 				"gruntfuggly.todo-tree",
-				"eamodio.gitlens"
+				"eamodio.gitlens",
+				"vitest.explorer"
 			]
 		}
 	}

@@ -2,13 +2,14 @@ import { OptionValues } from "commander";
 import { log } from "console";
 import { readdir, rm, stat } from "fs/promises";
 import { getLogoAndVersion } from "./cliSetup.js";
-import { Dirent } from "fs";
+import { Dirent, PathLike } from "fs";
+import { basename, dirname, join } from "path";
 
 class MoDurge {
     private didPerformPurge = false;
     private totalBytesSaved = 0;
 
-    private constructor(private destinations: string[], private options: OptionValues) {
+    private constructor(private destinations: PathLike[], private options: OptionValues) {
         this.prepareSystem();
     }
 
@@ -25,17 +26,20 @@ class MoDurge {
         log(getLogoAndVersion());
     }
 
-    public static async purge(destinations: string[], options: OptionValues): Promise<void> {
+    public static async purge(destinations: PathLike[], options: OptionValues): Promise<void> {
         const purger = new MoDurge(destinations, options);
         for (const destination of destinations) {
-            if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination}...`);
+            if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination.toString()}...`);
             await purger.walk(destination);
         }
         if (!options.quiet) purger.displayCompletionMessage();
     }
 
-    private isCurrentDirectory(destination: string): boolean {
-        return destination === "." || destination === "./" || destination === process.cwd();
+    private isCurrentDirectory(destination: PathLike): boolean {
+        const destinationString = destination.toString();
+        const currentPathPatterns = [".", "./", process.cwd()]
+        const isCurrentDirectory = currentPathPatterns.includes(destinationString);
+        return isCurrentDirectory;
     }
 
     private formatBytes(bytes: number): string {
@@ -55,26 +59,40 @@ class MoDurge {
         log(this.didPerformPurge ? `Successfully purged all node_modules! Saved ${savedSpaceStr} of disk space.` : `No node_modules found to purge.`);
     }
 
-    private async walk(destination: string): Promise<void> {
+    private async walk(destination: PathLike): Promise<void> {
         const entries = await readdir(destination);
         for (const entry of entries) {
-            const relativeEntryPath = destination + "/" + entry;
+            const relativeEntryPath = destination.toString() + "/" + entry;
+            const isNotDirectory = await this.isNotDirectory(relativeEntryPath);
+            if (isNotDirectory) continue;
             const isModulesFolder = await this.isModulesDirectory(relativeEntryPath);
-            if (isModulesFolder) await this.purgeDirectory(relativeEntryPath);
+            const parentDir = dirname(relativeEntryPath.toString());
+            const hasPackageJson = await this.hasPackageJson(parentDir);
+            if (isModulesFolder && hasPackageJson) await this.purgeDirectory(relativeEntryPath);
         }
     }
 
-    private async isModulesDirectory(relativeEntryPath: string): Promise<boolean> {
-        const isNotDirectory = await this.isNotDirectory(relativeEntryPath)
-        if (isNotDirectory) return false;
-        if (!relativeEntryPath.includes("node_modules")) {
-            await this.walk(relativeEntryPath);
+    private async isModulesDirectory(relativeEntryPath: PathLike): Promise<boolean> {
+        const isModulesDirectory = basename(relativeEntryPath.toString()) === "node_modules";
+        if (isModulesDirectory) {
+            return true;
+        }
+        await this.walk(relativeEntryPath);
+        return false;
+    }
+
+    private async hasPackageJson(dirPath: PathLike): Promise<boolean> {
+        try {
+            const packageJsonPath = join(dirPath.toString(), "package.json");
+            const stats = await stat(packageJsonPath);
+            const hasPackageJson = stats.isFile();
+            return hasPackageJson;
+        } catch {
             return false;
         }
-        return true;
     }
 
-    private async isNotDirectory(entryOrPath: string | Dirent<string>): Promise<boolean> {
+    private async isNotDirectory(entryOrPath: PathLike | Dirent): Promise<boolean> {
         if (entryOrPath instanceof Dirent) {
             return !entryOrPath.isDirectory();
         }
@@ -86,8 +104,8 @@ class MoDurge {
         }
     }
 
-    private async purgeDirectory(relativeEntryPath: string): Promise<void> {
-        if (!this.options.quiet) log(`Purging: ${relativeEntryPath}`);
+    private async purgeDirectory(relativeEntryPath: PathLike): Promise<void> {
+        if (!this.options.quiet) log(`Purging: ${relativeEntryPath.toString()}`);
 
         try {
             const size = await this.getDirectorySize(relativeEntryPath);
@@ -100,12 +118,12 @@ class MoDurge {
         if (!this.didPerformPurge) this.didPerformPurge = true;
     }
 
-    private async getDirectorySize(dirPath: string): Promise<number> {
+    private async getDirectorySize(dirPath: PathLike): Promise<number> {
         let size = 0;
         const entries = await readdir(dirPath, { withFileTypes: true });
 
         for (const entry of entries) {
-            const fullPath = dirPath + "/" + entry.name;
+            const fullPath: PathLike = dirPath.toString() + "/" + entry.name;
             const isDirectory = !(await this.isNotDirectory(entry));
             if (isDirectory) {
                 size += await this.getDirectorySize(fullPath);
@@ -122,6 +140,6 @@ class MoDurge {
     }
 }
 
-export async function purge(destinations: string[], options: OptionValues) {
+export async function purge(destinations: PathLike[], options: OptionValues) {
     await MoDurge.purge(destinations, options);
 }
