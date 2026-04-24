@@ -14,6 +14,7 @@ export function getLogoAndVersion() {
     return `${logo}\nVersion ${globalThis.program.version()} by Shade`;    
 }
 
+/* v8 ignore start */
 export function cliSetup() {
     program
         .version("1.2.1")
@@ -28,3 +29,4 @@ export function cliSetup() {
 
     program.addHelpText("beforeAll", getLogoAndVersion());
 }
+/* v8 ignore stop */
