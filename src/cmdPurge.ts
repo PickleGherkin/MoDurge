@@ -12,7 +12,7 @@ class MoDurge {
     private didPerformPurge = false;
     private totalBytesSaved = 0;
 
-    private constructor(private destinations: PathLike[], private options: OptionValues) {
+    public constructor(private destinations: PathLike[], private options: OptionValues) {
         this.prepareSystem();
     }
 
@@ -29,18 +29,17 @@ class MoDurge {
         log(getLogoAndVersion());
     }
 
-    public static async purge(destinations: PathLike[], options: OptionValues): Promise<void> {
-        await this.confirmTopLevelPurge(destinations);
-        const purger = new MoDurge(destinations, options);
-        for (const destination of destinations) {
-            if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination.toString()}...`);
-            await purger.walkWithErrorHandling(destination);
+    public async purge(): Promise<void> {
+        await this.confirmTopLevelPurge();
+        for (const destination of this.destinations) {
+            if (!this.options.quiet) log(`Searching for node_modules in ${this.isCurrentDirectory(destination) ? "current directory" : destination.toString()}...`);
+            await this.walkWithErrorHandling(destination);
         }
-        if (!options.quiet) purger.displayCompletionMessage();
+        if (!this.options.quiet) this.displayCompletionMessage();
     }
 
-    private static async confirmTopLevelPurge(destinations: PathLike[]): Promise<void> {
-        for (const destination of destinations) {
+    private async confirmTopLevelPurge(): Promise<void> {
+        for (const destination of this.destinations) {
             if (!this.isTopLevelDestination(destination)) {
                 continue;
             }
@@ -58,7 +57,7 @@ class MoDurge {
         }
     }
 
-    private static isTopLevelDestination(destination: PathLike) {
+    private isTopLevelDestination(destination: PathLike) {
         const topLevelPatterns = ["/", "/home", ".local", "/root", "/etc", "/var", homedir()];
         const protectedPaths = topLevelPatterns.map(pattern => resolve(pattern));
         const absoluteDestination = resolve(destination.toString());
@@ -67,7 +66,7 @@ class MoDurge {
         return isTopLevelDestination;
     }
 
-    private static isNotConfirmInput(answer: string) {
+    private isNotConfirmInput(answer: string) {
         const confirmPattern = ["y", "yes"];
         const isConfirmInput = confirmPattern.includes(answer.toLowerCase());
         return !isConfirmInput;
@@ -190,5 +189,6 @@ class MoDurge {
 }
 
 export async function purge(destinations: PathLike[], options: OptionValues) {
-    await MoDurge.purge(destinations, options);
+    const purger = new MoDurge(destinations, options);
+    await purger.purge();
 }
