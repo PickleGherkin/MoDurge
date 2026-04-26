@@ -3,6 +3,11 @@ import * as fsPromises from 'fs/promises';
 import { Dirent, PathLike } from 'fs';
 import fs from 'fs';
 import { log } from 'console';
+import * as readline from 'readline/promises';
+
+vi.mock('readline/promises', () => ({
+    createInterface: vi.fn(),
+}));
 
 vi.mock('fs/promises');
 vi.mock('console', () => ({
@@ -233,3 +238,53 @@ test('Purge - recursive getDirectorySize logic', async () => {
     expect(fsPromises.rm).toHaveBeenCalledWith('test-target/my-project/node_modules', { recursive: true, force: true });
     expect(log).toHaveBeenCalledWith(expect.stringContaining('Successfully purged all node_modules! Saved')); // TODO: Replace this with a dedicated environment message or something
 });
+
+test('Purge - top level confirmation (confirmed)', async () => {
+    const questionMock = vi.fn().mockResolvedValue('y');
+    const closeMock = vi.fn();
+    vi.mocked(readline.createInterface).mockReturnValue({
+        question: questionMock,
+        close: closeMock
+    } as any);
+
+    vi.spyOn(fsPromises, 'readdir').mockResolvedValue([]);
+    const errorMock = vi.fn();
+    globalThis.program = { error: errorMock, version: () => "1.0.0" } as any;
+
+    await purge(['/'], { quiet: true, dry: true, force: false });
+
+    // Assert that readline asked and finished without error
+    expect(readline.createInterface).toHaveBeenCalled();
+    expect(questionMock).toHaveBeenCalled();
+    expect(closeMock).toHaveBeenCalled();
+    expect(errorMock).not.toHaveBeenCalled();
+});
+
+test('Purge - top level confirmation (cancelled)', async () => {
+    const questionMock = vi.fn().mockResolvedValue('n');
+    const closeMock = vi.fn();
+    vi.mocked(readline.createInterface).mockReturnValue({
+        question: questionMock,
+        close: closeMock
+    } as any);
+
+    const errorMock = vi.fn();
+    globalThis.program = { error: errorMock, version: () => "1.0.0" } as any;
+
+    await purge(['/'], { quiet: true, dry: true, force: false });
+
+    // Assert that the CLI aborted
+    expect(errorMock).toHaveBeenCalledWith('Operation cancelled by user.');
+});
+
+test('Purge - purge on non-existent path', async () => {
+    const errorMessage = "ENOENT: no such file or directory, scandir 'foofoofoo'"
+    vi.spyOn(fsPromises, 'readdir').mockRejectedValue(new Error(errorMessage));
+    const errorMock = vi.fn();
+    globalThis.program = { error: errorMock, version: () => "1.0.0" } as any;
+
+    await purge(["foofoofoo"], { quiet: true });
+
+    // Assert that the program threw an error instead of proceeding
+    expect(errorMock).toHaveBeenCalledWith("Something went wrong while traversing files. Please be sure that the given path is valid and not protected. Error Message: " + errorMessage);
+})

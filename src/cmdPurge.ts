@@ -3,7 +3,10 @@ import { log } from "console";
 import { readdir, rm, stat } from "fs/promises";
 import { getLogoAndVersion } from "./cliSetup.js";
 import { Dirent, PathLike } from "fs";
-import { basename, dirname, join } from "path";
+import { basename, dirname, join, parse, resolve } from "path";
+import { homedir } from "os";
+import * as readline from "readline/promises";
+import { stdin as input, stdout as output } from "process";
 
 class MoDurge {
     private didPerformPurge = false;
@@ -27,12 +30,47 @@ class MoDurge {
     }
 
     public static async purge(destinations: PathLike[], options: OptionValues): Promise<void> {
+        await this.confirmTopLevelPurge(destinations);
         const purger = new MoDurge(destinations, options);
         for (const destination of destinations) {
             if (!options.quiet) log(`Searching for node_modules in ${purger.isCurrentDirectory(destination) ? "current directory" : destination.toString()}...`);
-            await purger.walk(destination);
+            await purger.walkWithErrorHandling(destination);
         }
         if (!options.quiet) purger.displayCompletionMessage();
+    }
+
+    private static async confirmTopLevelPurge(destinations: PathLike[]): Promise<void> {
+        for (const destination of destinations) {
+            if (!this.isTopLevelDestination(destination)) {
+                continue;
+            }
+            const readlineInterface = readline.createInterface({ input, output });
+            try {
+                const answer = await readlineInterface.question(
+                    `WARNING: '${destination}' is a top-level or protected directory.\nAre you sure you want to search and purge node_modules here? This could cause unintended data loss and major fuck ups. (y/N): `
+                );
+                if (this.isNotConfirmInput(answer)) {
+                    globalThis.program.error("Operation cancelled by user.");
+                }
+            } finally {
+                readlineInterface.close();
+            }
+        }
+    }
+
+    private static isTopLevelDestination(destination: PathLike) {
+        const topLevelPatterns = ["/", "/home", ".local", "/root", "/etc", "/var", homedir()];
+        const protectedPaths = topLevelPatterns.map(pattern => resolve(pattern));
+        const absoluteDestination = resolve(destination.toString());
+        const parsed = parse(absoluteDestination);
+        const isTopLevelDestination = protectedPaths.includes(absoluteDestination) || absoluteDestination === parsed.root;
+        return isTopLevelDestination;
+    }
+
+    private static isNotConfirmInput(answer: string) {
+        const confirmPattern = ["y", "yes"];
+        const isConfirmInput = confirmPattern.includes(answer.toLowerCase());
+        return !isConfirmInput;
     }
 
     private isCurrentDirectory(destination: PathLike): boolean {
@@ -59,16 +97,27 @@ class MoDurge {
         log(this.didPerformPurge ? `Successfully purged all node_modules! Saved ${savedSpaceStr} of disk space.` : `No node_modules found to purge.`);
     }
 
-    private async walk(destination: PathLike): Promise<void> {
-        const entries = await readdir(destination);
-        for (const entry of entries) {
-            const relativeEntryPath = destination.toString() + "/" + entry;
-            const isNotDirectory = await this.isNotDirectory(relativeEntryPath);
-            if (isNotDirectory) continue;
-            const isModulesFolder = await this.isModulesDirectory(relativeEntryPath);
-            const parentDir = dirname(relativeEntryPath.toString());
-            const hasPackageJson = await this.hasPackageJson(parentDir);
-            if (isModulesFolder && hasPackageJson) await this.purgeDirectory(relativeEntryPath);
+    private async walkWithErrorHandling(destination: PathLike): Promise<void> {
+        const walk = async (destination: PathLike): Promise<void> => {
+            const entries = await readdir(destination);
+            for (const entry of entries) {
+                const relativeEntryPath = destination.toString() + "/" + entry;
+                const isNotDirectory = await this.isNotDirectory(relativeEntryPath);
+                if (isNotDirectory) continue;
+                const isModulesFolder = await this.isModulesDirectory(relativeEntryPath);
+                const parentDir = dirname(relativeEntryPath.toString());
+                const hasPackageJson = await this.hasPackageJson(parentDir);
+                if (isModulesFolder && hasPackageJson) await this.purgeDirectory(relativeEntryPath);
+            }
+        }
+
+        try {
+            await walk(destination);
+        } catch (error) {
+            if (error instanceof Error) {
+                globalThis.program.error("Something went wrong while traversing files. Please be sure that the given path is valid and not protected. Error Message: " + error.message);
+            }
+            globalThis.program.error("An unknown error occured. This shouldn't happen...");
         }
     }
 
@@ -77,7 +126,7 @@ class MoDurge {
         if (isModulesDirectory) {
             return true;
         }
-        await this.walk(relativeEntryPath);
+        await this.walkWithErrorHandling(relativeEntryPath);
         return false;
     }
 

@@ -1,7 +1,7 @@
 {
   "name": "modurge",
   "author": "Shade",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "bin": {
     "modurge": "bin/modurge.cjs"
   },
