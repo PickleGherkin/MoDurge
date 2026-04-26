@@ -8,6 +8,8 @@ __tests__/
  coverage/
 jest.config.js
 jest.config.ts
+vitest.config.js
+vitest.config.ts
 
 # Ignore TypeScript configs
 tsconfig.json

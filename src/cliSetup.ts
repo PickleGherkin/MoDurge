@@ -1,7 +1,8 @@
 import { Command } from "commander"
 import { purge } from "./cmdPurge.js";
-import { readFileSync } from "fs";
+import { logo } from "./logo.js";
 import { join } from "path";
+import { readFileSync } from "fs";
 
 declare global {
     var program: Command;
@@ -9,15 +10,20 @@ declare global {
 globalThis.program = new Command();
 
 export function getLogoAndVersion() {
-    const logoPath = join(import.meta.dirname, '..', 'logo.txt');
-    const logo = readFileSync(logoPath, "utf8");
-    return `${logo}\nVersion ${globalThis.program.version()} by Shade`;    
+    return `${logo}\nVersion ${globalThis.program.version()} by Shade`;
 }
 
 /* v8 ignore start */
 export function cliSetup() {
+    function getVersion(): string {
+        const packageJsonPath = join(import.meta.dirname, '..', 'package.json');
+        const packageJson: Record<string, string> = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+        // No error handling needed, since build script checks for a valid package.json and version. I hope I don't regret this.
+        return packageJson.version;
+    }
+
     program
-        .version("1.2.1")
+        .version(getVersion())
         .description("A modular tool for purging Node.js modules in multiple given project destinations. Will purge all node_modules recursively in any folder it finds.");
 
     program.command("purge")
