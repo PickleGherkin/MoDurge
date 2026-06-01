@@ -107,7 +107,7 @@ class MoDurge {
                 const parentDir = dirname(relativeEntryPath.toString());
                 if (this.options.noPackageJsonRequirement) {
                     if (isModulesFolder) await this.purgeDirectory(relativeEntryPath);
-                    return;
+                    continue;
                 }
                 const hasPackageJson = await this.hasPackageJson(parentDir);
                 if (isModulesFolder && hasPackageJson) await this.purgeDirectory(relativeEntryPath);
