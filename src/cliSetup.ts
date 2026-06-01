@@ -31,7 +31,8 @@ export function cliSetup() {
         .action(purge)
         .option("-q, --quiet", "Suppress output", false)
         .option("-f, --force", "Force deletion without confirmation. Highly destructive! Use this only if you know what you're doing.", false)
-        .option("-d, --dry", "Run in dry mode. Only show what would be deleted without actually deleting anything.", false);
+        .option("-d, --dry", "Run in dry mode. Only show what would be deleted without actually deleting anything.", false)
+        .option("-p, --noPackageJsonRequirement", "Disable package.json requirement when traversing and searching for node_modules", false);
 
     program.addHelpText("beforeAll", getLogoAndVersion());
 }

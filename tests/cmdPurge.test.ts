@@ -82,6 +82,54 @@ test('Purge - positive test (finds and deletes node_modules)', async () => {
     expect(fsPromises.rm).toHaveBeenCalledWith('test-target/my-project/node_modules', { recursive: true, force: true });
 });
 
+test('Purge - noPackageJsonRequirement purges node_modules without package.json lookup', async () => {
+    vi.spyOn(fsPromises, 'readdir').mockImplementation(async (
+        path: PathLike,
+        options: { withFileTypes: boolean } | undefined
+    ): Promise<any> => {
+        const withFileTypes = typeof options === 'object' && options?.withFileTypes;
+        switch (path) {
+            case 'test-target': {
+                return ['my-project'];
+            }
+            case 'test-target/my-project': {
+                return ['node_modules'];
+            }
+            case 'test-target/my-project/node_modules': {
+                if (withFileTypes) {
+                    return [createMockDirent('file1.ts', false)];
+                }
+                return ['file1.ts'];
+            }
+            default: {
+                return [];
+            }
+        }
+    });
+
+    vi.spyOn(fsPromises, 'stat').mockImplementation(async (path: PathLike): Promise<any> => {
+        if (typeof path !== 'string') {
+            return { isDirectory: () => false, size: 0, isFile: () => false };
+        }
+        if (path.endsWith('package.json')) {
+            throw new Error('package.json should not be checked when noPackageJsonRequirement is enabled');
+        }
+        const isDir = !path.endsWith('.ts');
+        return {
+            isDirectory: () => isDir,
+            size: 1024,
+            isFile: () => !isDir
+        };
+    });
+
+    vi.spyOn(fsPromises, 'rm').mockResolvedValue(undefined);
+
+    await purge(['test-target'], { quiet: true, dry: false, force: true, noPackageJsonRequirement: true });
+
+    expect(fsPromises.rm).toHaveBeenCalledWith('test-target/my-project/node_modules', { recursive: true, force: true });
+    expect(fsPromises.stat).not.toHaveBeenCalledWith('test-target/my-project/package.json');
+});
+
 test('Purge - non-quiet and dry run modes', async () => {
     vi.spyOn(fsPromises, 'readdir').mockResolvedValue([]);
     vi.spyOn(fsPromises, 'rm').mockResolvedValue(undefined);
